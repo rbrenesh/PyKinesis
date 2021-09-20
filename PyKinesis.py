@@ -1,7 +1,9 @@
 import clr
 import os, sys
 import time
+import System
 from System import Decimal
+
 
 clr.AddReference(r"C:\\Program Files\\Thorlabs\\Kinesis\\Thorlabs.MotionControl.DeviceManagerCLI.dll")
 clr.AddReference(r"C:\\Program Files\\Thorlabs\\Kinesis\\Thorlabs.MotionControl.GenericMotorCLI.dll")
@@ -20,6 +22,7 @@ class KinesisMotor():
         self.device = None
         self.polling = polling
         self.lims = None
+
         if SerialNum is not None:
             if type(SerialNum)==int:
                 SerialNum = str(SerialNum)
@@ -164,29 +167,53 @@ class KinesisMotor():
 
         return pos
 
-    def moveTo(self,position,time_out = 60000):
-        if position>=self.min_travel_lim and position <= self.max_travel_lim:
-            self.device.MoveTo(Decimal(position),time_out)
+    #to return immediately, set time_out=0
+    #callback is an optional function that will run after the device completes the operation
 
-        else:
-            raise Exception('Requested position outside of device travel range')
+    def moveTo(self,position, time_out = 60000, callback = None):
+        if callback is None:
+            if position>=self.min_travel_lim and position <= self.max_travel_lim:
+                self.device.MoveTo(Decimal(position),time_out)
 
-    def moveRel(self, relDist, time_out = 60000):
-        
-        if relDist>=0:
-            self.device.MoveRelative(MotorDirection.Forward,Decimal(abs(relDist)),time_out)
+            else:
+                raise Exception('Requested position outside of device travel range')
         else:
-            self.device.MoveRelative(MotorDirection.Backward,Decimal(abs(relDist)),time_out)
+            if position>=self.min_travel_lim and position <= self.max_travel_lim:
+                self.device.MoveTo(Decimal(position),time_out,System.Action[System.Int64](callback))
+
+            else:
+                raise Exception('Requested position outside of device travel range')
+
+    #to return immediately, set time_out=0
+    #callback is an optional function that will run after the device completes the operation
+    def moveRel(self, relDist, time_out = 60000, callback = None):
+        if callback is None:
+            if relDist>=0:
+                self.device.MoveRelative(MotorDirection.Forward,Decimal(abs(relDist)),time_out)
+            else:
+                self.device.MoveRelative(MotorDirection.Backward,Decimal(abs(relDist)),time_out)
+        else:
+            if relDist>=0:
+                self.device.MoveRelative(MotorDirection.Forward,Decimal(abs(relDist)),time_out,System.Action[System.Int64](callback))
+            else:
+                self.device.MoveRelative(MotorDirection.Backward,Decimal(abs(relDist)),time_out,System.Action[System.Int64](callback))
 
     def setHomingVel(self,vel):
         self.device.SetHomingVelocity(Decimal(vel))
 
-    def go_home(self,time_out=60000):
-        
-        if self.device.CanHome:
-            self.device.Home(time_out)
+    #to return immediately, set time_out=0
+    #callback is an optional function that will run after the device completes the operation
+    def go_home(self,time_out=60000, callback = None):
+        if callback is None:
+            if self.device.CanHome:
+                self.device.Home(time_out)
+            else:
+                raise Exception('Device unable to home')
         else:
-            raise Exception('Device unable to home')
+            if self.device.CanHome:
+                self.device.Home(time_out,System.Action[System.Int64](callback))
+            else:
+                raise Exception('Device unable to home')
 
     def identify(self):
         self.device.IdentifyDevice()
@@ -200,8 +227,6 @@ class KinesisMotor():
 #returns True if motor hasn't been homed before and doesn't know it's absolute location. Otherwise returns false   
     def needsHoming(self):
         return self.device.get_NeedsHoming()
-
-
 
 if __name__ == "__main__":
 
